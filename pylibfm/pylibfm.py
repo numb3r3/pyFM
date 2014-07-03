@@ -1,18 +1,23 @@
 import numpy as np
-from sklearn import cross_validation
 import random
+
+from sklearn.base import BaseEstimator
+from sklearn import cross_validation
+
 from pyfm_fast import FM_fast, CSRDataset
+
 
 LEARNING_RATE_TYPES = {"optimal": 0, "invscaling": 1, "constant": 2}
 TASKS = {"regression": 0, "classification" : 1}
 
-class FM:
+
+class FM(BaseEstimator):
     """Factorization machine fitted by minimizing a regularized empirical loss with adaptive SGD.
 
     Parameters
     ----------
 
-    num_factors : int 
+    num_factors : int
         The dimensionality of the factorized 2-way interactions
     num_iter : int
         Number of iterations
@@ -25,7 +30,7 @@ class FM:
         Standard deviation for initialization of 2-way factors.
         Defaults to 0.01.
     validation_size : double, optional
-        Proportion of the training set to use for validation. 
+        Proportion of the training set to use for validation.
         Defaults to 0.01.
     learning_rate_schedule : string, optional
         The learning rate:
@@ -84,12 +89,12 @@ class FM:
         self.t = 1.0
         self.learning_rate = initial_learning_rate
         self.t0 = t0
-        
+
         # Regularization Parameters (start with no regularization)
         self.reg_0 = 0.0
         self.reg_w = 0.0
         self.reg_v = np.repeat(0.0, num_factors)
-        
+
         # local parameters in the lambda_update step
         self.lambda_w_grad = 0.0
         self.lambda_v_grad = 0.0
@@ -121,7 +126,7 @@ class FM:
             return TASKS[task]
         except KeyError:
             raise ValueError("task %s "
-                             "is not supported. " % task)   
+                             "is not supported. " % task)
 
     def _bool_to_int(self, bool_arg):
         """Map bool to int for cython"""
@@ -155,7 +160,7 @@ class FM:
             y = np.array(y)
 
         self._validate_params()
-        
+
         if self.task == "classification":
             y = self._prepare_y(y)
 
