@@ -1,9 +1,11 @@
 import numpy as np
+import scipy.sparse as sp
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn import cross_validation
+from sklearn.utils import check_arrays
 
 from pyfm_fast import FM_fast, CSRDataset
 
@@ -157,13 +159,9 @@ class BaseFM(BaseEstimator):
         -------
         self : returns an instance of self.
         """
-        if type(y) != np.ndarray:
-            y = np.array(y)
+        X, y = check_arrays(X, y, sparse_format='csr', dtype=np.float64)
 
         self._validate_params()
-
-        if self.task == "classification":
-            y = self._prepare_y(y)
 
         self.max_target = max(y)
         self.min_target = min(y)
@@ -231,6 +229,7 @@ class BaseFM(BaseEstimator):
         array, shape = [n_samples] if X is sparse matrix
            Predicted target values per element in X.
         """
+        X, = check_arrays(X, sparse_format='csr', dtype=np.float64)
         sparse_X = _make_dataset(X, np.ones(X.shape[0]))
 
         return self.fm_fast._predict(sparse_X)
@@ -305,6 +304,20 @@ class FMClassifier(BaseFM, ClassifierMixin):
                                            shuffle_training=shuffle_training,
                                            seed=seed)
 
+    def fit(self, X, y):
+        self.classes_, y = np.unique(y, return_inverse=True)
+        if len(self.classes_) != 2:
+            raise ValueError('FMClassifier only supports binary classification')
+
+        y = (y * 2) - 1
+        super(FMClassifier, self).fit(X, y)
+        return self
+
+    def predict(self, X):
+        scores = super(FMClassifier, self).predict(X)
+        pred = self.classes_[(scores >= 0.5).astype(np.int)]
+        return pred
+
     def predict_proba(self, X):
         """Predict probabilities using the factorization machine
 
@@ -320,7 +333,10 @@ class FMClassifier(BaseFM, ClassifierMixin):
         array, shape = [n_samples] if X is sparse matrix
            Predicted target values per element in X.
         """
-        return super(FMClassifier, self).predict(X)
+        proba = np.ones((X.shape[0], 2), dtype=np.float64)
+        proba[:, 1] = super(FMClassifier, self).predict(X)
+        proba[:, 0] -= proba[:, 1]
+        return proba
 
 
 class FMRegressor(BaseFM, RegressorMixin):
@@ -395,6 +411,11 @@ class FMRegressor(BaseFM, RegressorMixin):
 
 def _make_dataset(X, y_i):
     """Create ``Dataset`` abstraction for sparse and dense inputs."""
+    if not sp.issparse(X):
+        X = sp.csr_matrix(X)
+    elif not isinstance(X, sp.csr_matrix):
+        X = sp.csr_matrix(X)
+
     sample_weight = np.ones(X.shape[0], dtype=np.float64, order='C') # ignore sample weight for the moment
     dataset = CSRDataset(X.data, X.indptr, X.indices, y_i, sample_weight)
     return dataset
