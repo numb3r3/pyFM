@@ -212,12 +212,8 @@ class FM(BaseEstimator):
                                self.seed,
                                verbose)
 
-        return self.fm_fast.fit(X_train_dataset, validation_dataset)
-
-        # report epoch information
-        if self.verbose == True:
-            print("-- Epoch %d" % (epoch + 1))
-            print "Train RMSE: %.5f" % (self.sumloss / self.count)
+        self.fm_fast.fit(X_train_dataset, validation_dataset)
+        return self
 
     def predict(self, X):
         """Predict using the factorization machine
