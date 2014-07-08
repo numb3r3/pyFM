@@ -1,7 +1,8 @@
 import numpy as np
-import random
 
 from sklearn.base import BaseEstimator
+from sklearn.base import ClassifierMixin
+from sklearn.base import RegressorMixin
 from sklearn import cross_validation
 
 from pyfm_fast import FM_fast, CSRDataset
@@ -11,7 +12,7 @@ LEARNING_RATE_TYPES = {"optimal": 0, "invscaling": 1, "constant": 2}
 TASKS = {"regression": 0, "classification" : 1}
 
 
-class FM(BaseEstimator):
+class BaseFM(BaseEstimator):
     """Factorization machine fitted by minimizing a regularized empirical loss with adaptive SGD.
 
     Parameters
@@ -233,6 +234,164 @@ class FM(BaseEstimator):
         sparse_X = _make_dataset(X, np.ones(X.shape[0]))
 
         return self.fm_fast._predict(sparse_X)
+
+
+class FMClassifier(BaseFM, ClassifierMixin):
+    """Factorization machine fitted by minimizing a regularized empirical loss with adaptive SGD.
+
+    Parameters
+    ----------
+
+    num_factors : int
+        The dimensionality of the factorized 2-way interactions
+    num_iter : int
+        Number of iterations
+    k0 : bool
+        Use bias. Defaults to true.
+    k1 : bool
+        Use 1-way interactions (learn feature weights).
+        Defaults to true.
+    init_stdev : double, optional
+        Standard deviation for initialization of 2-way factors.
+        Defaults to 0.01.
+    validation_size : double, optional
+        Proportion of the training set to use for validation.
+        Defaults to 0.01.
+    learning_rate_schedule : string, optional
+        The learning rate:
+            constant: eta = eta0
+            optimal: eta = 1.0/(t+t0) [default]
+            invscaling: eta = eta0 / pow(t, power_t)
+    initial_learning_rate : double
+        Defaults to 0.01
+    power_t : double
+        The exponent for inverse scaling learning rate [default 0.5].
+    t0 : double
+        Constant in the denominator for optimal learning rate schedule.
+        Defaults to 0.001.
+    verbose : bool
+        Whether or not to print current iteration, training error
+    shuffle_training: bool
+        Whether or not to shuffle training dataset before learning
+    seed : int
+        The seed of the pseudo random number generator
+    """
+    def __init__(self,
+                 num_factors=10,
+                 num_iter=1,
+                 k0=True,
+                 k1=True,
+                 init_stdev=0.1,
+                 validation_size=0.01,
+                 learning_rate_schedule="optimal",
+                 initial_learning_rate=0.01,
+                 power_t=0.5,
+                 t0=0.001,
+                 task='classification',
+                 verbose=True,
+                 shuffle_training=True,
+                 seed = 28):
+        super(FMClassifier, self).__init__(num_factors=num_factors,
+                                           num_iter=num_iter,
+                                           k0=k0, k1=k1,
+                                           init_stdev=init_stdev,
+                                           validation_size=validation_size,
+                                           learning_rate_schedule=learning_rate_schedule,
+                                           initial_learning_rate=initial_learning_rate,
+                                           power_t=power_t,
+                                           t0=t0,
+                                           task='classification',
+                                           verbose=verbose,
+                                           shuffle_training=shuffle_training,
+                                           seed=seed)
+
+    def predict_proba(self, X):
+        """Predict probabilities using the factorization machine
+
+        Parameters
+        ----------
+        X : sparse matrix, shape = [n_samples, n_features]
+        or
+        X : single instance [1, n_features]
+
+        Returns
+        -------
+        float if X is one instance
+        array, shape = [n_samples] if X is sparse matrix
+           Predicted target values per element in X.
+        """
+        return super(FMClassifier, self).predict(X)
+
+
+class FMRegressor(BaseFM, RegressorMixin):
+    """Factorization machine fitted by minimizing a regularized empirical loss with adaptive SGD.
+
+    Parameters
+    ----------
+
+    num_factors : int
+        The dimensionality of the factorized 2-way interactions
+    num_iter : int
+        Number of iterations
+    k0 : bool
+        Use bias. Defaults to true.
+    k1 : bool
+        Use 1-way interactions (learn feature weights).
+        Defaults to true.
+    init_stdev : double, optional
+        Standard deviation for initialization of 2-way factors.
+        Defaults to 0.01.
+    validation_size : double, optional
+        Proportion of the training set to use for validation.
+        Defaults to 0.01.
+    learning_rate_schedule : string, optional
+        The learning rate:
+            constant: eta = eta0
+            optimal: eta = 1.0/(t+t0) [default]
+            invscaling: eta = eta0 / pow(t, power_t)
+    initial_learning_rate : double
+        Defaults to 0.01
+    power_t : double
+        The exponent for inverse scaling learning rate [default 0.5].
+    t0 : double
+        Constant in the denominator for optimal learning rate schedule.
+        Defaults to 0.001.
+    verbose : bool
+        Whether or not to print current iteration, training error
+    shuffle_training: bool
+        Whether or not to shuffle training dataset before learning
+    seed : int
+        The seed of the pseudo random number generator
+    """
+    def __init__(self,
+                 num_factors=10,
+                 num_iter=1,
+                 k0=True,
+                 k1=True,
+                 init_stdev=0.1,
+                 validation_size=0.01,
+                 learning_rate_schedule="optimal",
+                 initial_learning_rate=0.01,
+                 power_t=0.5,
+                 t0=0.001,
+                 verbose=True,
+                 shuffle_training=True,
+                 seed = 28):
+        super(FMRegressor, self).__init__(
+            num_factors=num_factors,
+            num_iter=num_iter,
+            k0=k0, k1=k1,
+            init_stdev=init_stdev,
+            validation_size=validation_size,
+            learning_rate_schedule=learning_rate_schedule,
+            initial_learning_rate=initial_learning_rate,
+            power_t=power_t,
+            t0=t0,
+            task='regression',
+            verbose=verbose,
+            shuffle_training=shuffle_training,
+            seed=seed)
+
 
 def _make_dataset(X, y_i):
     """Create ``Dataset`` abstraction for sparse and dense inputs."""
