@@ -110,10 +110,16 @@ class BaseFM(BaseEstimator):
         if not isinstance(self.shuffle_training, bool):
             raise ValueError("shuffle must be either True or False")
         if self.num_iter <= 0:
-            raise ValueError("n_iter must be > zero")
+            raise ValueError("num_iter must be > zero")
         if self.learning_rate_schedule in ("constant", "invscaling"):
             if self.eta0 <= 0.0:
                 raise ValueError("eta0 must be > 0")
+
+        self.num_factors = int(self.num_factors)
+        self.num_iter = int(self.num_iter)
+        self.t = float(self.t)
+        self.t0 = float(self.t0)
+        self.power_t = float(self.power_t)
 
     def _get_learning_rate_type(self, learning_rate):
         """Map learning rate string to int for cython"""
@@ -160,11 +166,13 @@ class BaseFM(BaseEstimator):
         self : returns an instance of self.
         """
         X, y = check_arrays(X, y, sparse_format='csr', dtype=np.float64)
+        if not isinstance(X, sp.csr_matrix):
+            X = sp.csr_matrix(X)
 
         self._validate_params()
 
-        self.max_target = max(y)
-        self.min_target = min(y)
+        self.max_target = y.max()
+        self.min_target = y.min()
 
         # convert member variables to ints for use in cython
         k0 = self._bool_to_int(self.k0)
@@ -175,11 +183,13 @@ class BaseFM(BaseEstimator):
         task = self._get_task(self.task)
 
         # use sklearn to create a validation dataset for lambda updates
-        if self.verbose == True:
-            print "Creating validation dataset of %.2f of training for adaptive regularization" % self.validation_size
+        if self.verbose:
+            print("Creating validation dataset of %.2f of training for adaptive regularization"
+                  % self.validation_size)
         X_train, validation, train_labels, validation_labels = cross_validation.train_test_split(
-            X, y, test_size=self.validation_size)
-        self.num_attribute = X_train.shape[1]
+            X, y, test_size=self.validation_size, random_state=self.seed)
+
+        self.n_features_ = X_train.shape[1]
 
         # Convert datasets to sklearn sequential datasets for fast traversal
         X_train_dataset = _make_dataset(X_train, train_labels)
@@ -187,14 +197,15 @@ class BaseFM(BaseEstimator):
 
         # Set up params
         self.w0 = 0.0
-        self.w = np.zeros(self.num_attribute)
-        np.random.seed(seed=self.seed)
-        self.v = np.random.normal(scale=self.init_stdev,size=(self.num_factors, self.num_attribute))
+        self.w = np.zeros(self.n_features_, dtype=np.float64)
+        rng = np.random.RandomState(self.seed)
+        self.v = rng.normal(scale=self.init_stdev,
+                            size=(self.num_factors, self.n_features_)).astype(np.float64)
 
         self.fm_fast = FM_fast(self.w,
                                self.v,
                                self.num_factors,
-                               self.num_attribute,
+                               self.n_features_,
                                self.num_iter,
                                k0,
                                k1,
@@ -219,9 +230,7 @@ class BaseFM(BaseEstimator):
 
         Parameters
         ----------
-        X : sparse matrix, shape = [n_samples, n_features]
-        or
-        X : single instance [1, n_features]
+        X : array-like, shape = [n_samples, n_features]
 
         Returns
         -------
@@ -230,6 +239,8 @@ class BaseFM(BaseEstimator):
            Predicted target values per element in X.
         """
         X, = check_arrays(X, sparse_format='csr', dtype=np.float64)
+        if not sp.issparse(X):
+            X = sp.csr_matrix(X)
         sparse_X = _make_dataset(X, np.ones(X.shape[0]))
 
         return self.fm_fast._predict(sparse_X)
@@ -411,12 +422,11 @@ class FMRegressor(BaseFM, RegressorMixin):
 
 def _make_dataset(X, y_i):
     """Create ``Dataset`` abstraction for sparse and dense inputs."""
-    if not sp.issparse(X):
-        X = sp.csr_matrix(X)
-    elif not isinstance(X, sp.csr_matrix):
-        X = sp.csr_matrix(X)
+    assert isinstance(X, sp.csr_matrix)
+    assert X.dtype == np.float64
 
-    sample_weight = np.ones(X.shape[0], dtype=np.float64, order='C') # ignore sample weight for the moment
+    # ignore sample weight for the moment
+    sample_weight = np.ones(X.shape[0], dtype=np.float64, order='C')
     dataset = CSRDataset(X.data, X.indptr, X.indices, y_i, sample_weight)
     return dataset
 
