@@ -3,6 +3,7 @@ from distutils.extension import Extension
 import os.path
 
 import numpy
+import pylibfm
 
 setup(
     name = "pyFM",
@@ -11,7 +12,7 @@ setup(
                              extra_link_args=["-O3","-ffast-math"]
                              ),
                   ],
-    version = "0.1",
+    version = pylibfm.__version__,
     description="A python implementation of libFM",
     author='Corey Lynch',
     author_email='coreylynch9@gmail.com',
