@@ -40,7 +40,7 @@ class BaseFM(BaseEstimator):
             constant: eta = eta0
             optimal: eta = 1.0/(t+t0) [default]
             invscaling: eta = eta0 / pow(t, power_t)
-    initial_learning_rate : double
+    eta0 : double
         Defaults to 0.01
     power_t : double
         The exponent for inverse scaling learning rate [default 0.5].
@@ -65,7 +65,7 @@ class BaseFM(BaseEstimator):
                  init_stdev=0.1,
                  validation_size=0.01,
                  learning_rate_schedule="optimal",
-                 initial_learning_rate=0.01,
+                 eta0=0.01,
                  power_t=0.5,
                  t0=0.001,
                  task='classification',
@@ -87,22 +87,9 @@ class BaseFM(BaseEstimator):
 
         # Learning rate Parameters
         self.learning_rate_schedule = learning_rate_schedule
-        self.eta0 = initial_learning_rate
+        self.eta0 = eta0
         self.power_t = power_t
-        self.t = 1.0
-        self.learning_rate = initial_learning_rate
         self.t0 = t0
-
-        # Regularization Parameters (start with no regularization)
-        self.reg_0 = 0.0
-        self.reg_w = 0.0
-        self.reg_v = np.repeat(0.0, num_factors)
-
-        # local parameters in the lambda_update step
-        self.lambda_w_grad = 0.0
-        self.lambda_v_grad = 0.0
-        self.sum_f = 0.0
-        self.sum_f_dash_f = 0.0
         self.verbose = verbose
 
     def _validate_params(self):
@@ -117,9 +104,12 @@ class BaseFM(BaseEstimator):
 
         self.num_factors = int(self.num_factors)
         self.num_iter = int(self.num_iter)
-        self.t = float(self.t)
         self.t0 = float(self.t0)
         self.power_t = float(self.power_t)
+        try:
+            self.eta0 = float(self.eta0)
+        except TypeError:
+            raise ValueError('eta0 expected float but got %r' % self.eta0)
 
     def _get_learning_rate_type(self, learning_rate):
         """Map learning rate string to int for cython"""
@@ -171,8 +161,9 @@ class BaseFM(BaseEstimator):
 
         self._validate_params()
 
-        self.max_target = y.max()
-        self.min_target = y.min()
+        self.t_ = 1.0
+        self.max_target_ = y.max()
+        self.min_target_ = y.min()
 
         # convert member variables to ints for use in cython
         k0 = self._bool_to_int(self.k0)
@@ -210,11 +201,11 @@ class BaseFM(BaseEstimator):
                                k0,
                                k1,
                                self.w0,
-                               self.t,
+                               self.t_,
                                self.t0,
                                self.power_t,
-                               self.min_target,
-                               self.max_target,
+                               self.min_target_,
+                               self.max_target_,
                                self.eta0,
                                learning_rate_schedule,
                                shuffle_training,
@@ -272,7 +263,7 @@ class FMClassifier(BaseFM, ClassifierMixin):
             constant: eta = eta0
             optimal: eta = 1.0/(t+t0) [default]
             invscaling: eta = eta0 / pow(t, power_t)
-    initial_learning_rate : double
+    eta0 : double
         Defaults to 0.01
     power_t : double
         The exponent for inverse scaling learning rate [default 0.5].
@@ -294,7 +285,7 @@ class FMClassifier(BaseFM, ClassifierMixin):
                  init_stdev=0.1,
                  validation_size=0.01,
                  learning_rate_schedule="optimal",
-                 initial_learning_rate=0.01,
+                 eta0=0.01,
                  power_t=0.5,
                  t0=0.001,
                  task='classification',
@@ -307,7 +298,7 @@ class FMClassifier(BaseFM, ClassifierMixin):
                                            init_stdev=init_stdev,
                                            validation_size=validation_size,
                                            learning_rate_schedule=learning_rate_schedule,
-                                           initial_learning_rate=initial_learning_rate,
+                                           eta0=eta0,
                                            power_t=power_t,
                                            t0=t0,
                                            task='classification',
@@ -376,7 +367,7 @@ class FMRegressor(BaseFM, RegressorMixin):
             constant: eta = eta0
             optimal: eta = 1.0/(t+t0) [default]
             invscaling: eta = eta0 / pow(t, power_t)
-    initial_learning_rate : double
+    eta0 : double
         Defaults to 0.01
     power_t : double
         The exponent for inverse scaling learning rate [default 0.5].
@@ -398,7 +389,7 @@ class FMRegressor(BaseFM, RegressorMixin):
                  init_stdev=0.1,
                  validation_size=0.01,
                  learning_rate_schedule="optimal",
-                 initial_learning_rate=0.01,
+                 eta0=0.01,
                  power_t=0.5,
                  t0=0.001,
                  verbose=True,
@@ -411,7 +402,7 @@ class FMRegressor(BaseFM, RegressorMixin):
             init_stdev=init_stdev,
             validation_size=validation_size,
             learning_rate_schedule=learning_rate_schedule,
-            initial_learning_rate=initial_learning_rate,
+            eta0=eta0,
             power_t=power_t,
             t0=t0,
             task='regression',
