@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sp
+import cPickle as pickle
 
 from pylibfm import FMRegressor
 from pylibfm import FMClassifier
@@ -40,4 +41,16 @@ def test_smoke_regression():
             est = FMRegressor(verbose=0, seed=13, num_iter=2, learning_rate_schedule=lr).fit(X_, y)
             pred = est.predict(X_)
             assert pred.shape == (n, )
-            np.testing.assert_array_almost_equal(pred[:5], np.array([1.0, 0.35404291, 0.57543318, 0.53575063, 0.98801102]))
+            np.testing.assert_array_almost_equal(pred[:5],
+                                                 np.array([1.0, 0.35404291, 0.57543318,
+                                                           0.53575063, 0.98801102]))
+
+
+def test_pickle():
+    est = FMClassifier(verbose=0, seed=13, num_iter=2).fit(X, y)
+    out = est.predict(X)
+    ser = pickle.dumps(est)
+
+    est2 = pickle.loads(ser)
+    out2 = est2.predict(X)
+    np.testing.assert_array_equal(out, out2)

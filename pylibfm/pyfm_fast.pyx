@@ -26,8 +26,10 @@ DEF CLASSIFICATION = 1
 DEF OPTIMAL = 0
 DEF INVERSE_SCALING = 1
 
+
 cdef class FM_fast(object):
-    """Factorization Machine fitted by minimizing a regularized empirical loss with adaptive SGD.
+    """Factorization Machine fitted by minimizing a regularized empirical loss with
+    adaptive SGD.
 
     Parameters
     ----------
@@ -439,11 +441,46 @@ cdef class FM_fast(object):
                 error_type = "RMSE" if self.task == REGRESSION else "log loss"
                 print("Training %s: %.5f" % (error_type, (self.sumloss / self.count)))
 
+    def __reduce__(self):
+        """Reduce re-implementation, for pickling."""
+        return (FM_fast, (self.w, self.v, self.num_factors, self.num_attributes,
+                          self.n_iter, self.k0, self.k1,
+                          self.w0, self.t, self.t0, self.power_t,
+                          self.min_target, self.max_target,
+                          self.learning_rate, self.learning_rate_schedule,
+                          self.shuffle_training, self.task,
+                          self.seed, self.verbose), self.__getstate__())
+
+    def __getstate__(self):
+        """Getstate re-implementation, for pickling."""
+        d = {}
+        d["grad_w"] = self.grad_w
+        d["grad_v"] = self.grad_v
+        d["reg_0"] = self.reg_0
+        d["reg_w"] = self.reg_w
+        d["reg_v"] = self.reg_v
+        d["sumloss"] = self.sumloss
+        d["count"] = self.count
+        return d
+
+    def __setstate__(self, d):
+        """Setstate re-implementation, for unpickling."""
+        self.grad_w = d["grad_w"]
+        self.grad_v = d["grad_v"]
+        self.reg_0 = d["reg_0"]
+        self.reg_w = d["reg_w"]
+        self.reg_v = d["reg_v"]
+        self.sumloss = d["sumloss"]
+        self.count = d["count"]
+
+
 cdef inline double max(double a, double b):
     return a if a >= b else b
 
+
 cdef inline double min(double a, double b):
     return a if a <= b else b
+
 
 cdef _log_loss(DOUBLE p, DOUBLE y):
     cdef DOUBLE z
@@ -459,7 +496,8 @@ cdef _log_loss(DOUBLE p, DOUBLE y):
 cdef _squared_loss(DOUBLE p, DOUBLE y):
     return 0.5 * (p - y) * (p - y)
 
-cdef class CSRDataset:
+
+cdef class CSRDataset(object):
     """An sklearn ``SequentialDataset`` backed by a scipy sparse CSR matrix. This is an ugly hack for the moment until I find the best way to link to sklearn. """
 
     cdef Py_ssize_t n_samples
