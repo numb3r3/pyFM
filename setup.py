@@ -11,7 +11,7 @@ setup(
                              extra_link_args=["-O3","-ffast-math"]
                              ),
                   ],
-    version = '0.2',
+    version = '0.2.1',
     description="A python implementation of libFM",
     author='Corey Lynch',
     author_email='coreylynch9@gmail.com',
