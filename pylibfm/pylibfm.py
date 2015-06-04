@@ -5,7 +5,7 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import RegressorMixin
 from sklearn import cross_validation
-from sklearn.utils import check_arrays
+from sklearn.utils import check_array
 
 from pyfm_fast import FM_fast, CSRDataset
 
